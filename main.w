@@ -23,6 +23,7 @@ bring cloud;
 bring http;
 bring util;
 
+
 let GITHUB_REPO_FULL = "{GITHUB_OWNER}/{GITHUB_REPO}";
 
 struct HttpRequestOptions {
