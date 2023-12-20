@@ -8,11 +8,13 @@
 // --------------------------------
 // Config
 
-let SLACK_CHANNEL = "#rybickic-test";
+let SLACK_CHANNEL_ALL_RELEASES = "#rybickic-test";
+let SLACK_CHANNEL_BREAKING_CHANGES = "#rybickic-test2";
 let GITHUB_OWNER = "Chriscbr";
 let GITHUB_REPO = "local-sim-test";
 
-// let SLACK_CHANNEL = "#releases";
+// let SLACK_CHANNEL_ALL_RELEASES = "#releases";
+// let SLACK_CHANNEL_BREAKING_CHANGES = "#breaking-changes";
 // let GITHUB_OWNER = "winglang";
 // let GITHUB_REPO = "wing";
 
@@ -96,13 +98,21 @@ interface IOnGitHubRelease {
   inflight handle(release: GithubRelease);
 }
 
+struct SlackPublisherProps {
+  slack: SlackClient;
+  allReleasesChannel: str;
+  breakingChangesChannel: str;
+}
+
 class SlackPublisher impl IOnGitHubRelease {
   slack: SlackClient;
-  channel: str;
+  allReleasesChannel: str;
+  breakingChangesChannel: str;
 
-  new(slack: SlackClient, channel: str) {
-    this.slack = slack;
-    this.channel = channel;
+  new(props: SlackPublisherProps) {
+    this.slack = props.slack;
+    this.allReleasesChannel = props.allReleasesChannel;
+    this.breakingChangesChannel = props.breakingChangesChannel;
   }
 
   pub inflight handle(release: GithubRelease) {
@@ -114,6 +124,9 @@ class SlackPublisher impl IOnGitHubRelease {
         text: "Wing {release.tag} has been released! :rocket:"
       } 
     });
+
+    // currently, new minor version releases are considered breaking changes
+    let isBreakingChange = release.tag.endsWith(".0");
 
     let var description = release.body;
     // strip everything after "### SHA-1 Checksums"
@@ -130,7 +143,11 @@ class SlackPublisher impl IOnGitHubRelease {
     });
 
     Utils.debug("posting slack message: {Json.stringify(blocks)}");
-    this.slack.post_message(channel: this.channel, blocks: blocks.copy());
+
+    this.slack.post_message(channel: this.allReleasesChannel, blocks: blocks.copy());
+    if isBreakingChange {
+      this.slack.post_message(channel: this.breakingChangesChannel, blocks: blocks.copy());
+    }
   }
 }
 
@@ -199,7 +216,11 @@ let slackToken = new cloud.Secret(name: "slack-token") as "Slack Token";
 let slack = new SlackClient(token: slackToken);
 
 let scanner = new GithubScanner();
-let slackPublisher = new SlackPublisher(slack, SLACK_CHANNEL);
+let slackPublisher = new SlackPublisher(
+  slack: slack,
+  allReleasesChannel: SLACK_CHANNEL_ALL_RELEASES,
+  breakingChangesChannel: SLACK_CHANNEL_BREAKING_CHANGES
+);
 scanner.onRelease(slackPublisher);
 
 new cloud.Endpoint(scanner.url);
