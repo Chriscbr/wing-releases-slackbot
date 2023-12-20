@@ -27,12 +27,6 @@ bring util;
 
 let GITHUB_REPO_FULL = "{GITHUB_OWNER}/{GITHUB_REPO}";
 
-struct HttpRequestOptions {
-  method: str?;
-  headers: Map<str>?;
-  body: str;
-}
-
 class Utils {
   pub extern "./utils.js" inflight static startGithubWebhook(repo: str, endpoint: str);
   pub extern "./utils.js" inflight static slackifyMarkdown(text: str): str;
