@@ -24,6 +24,7 @@ let GITHUB_REPO = "local-sim-test";
 bring cloud;
 bring http;
 bring util;
+bring regex;
 
 let GITHUB_REPO_FULL = "{GITHUB_OWNER}/{GITHUB_REPO}";
 
@@ -98,6 +99,11 @@ struct SlackPublisherProps {
   breakingChangesChannel: str;
 }
 
+let isBreakingChange = inflight (tag: str): bool => {
+  // version should match x.0.0 or 0.x.0
+  return regex.match("^[0-9]+\\.0\\.0$", tag) || regex.match("^0\\.[0-9]+\\.0$", tag);
+};
+
 class SlackPublisher impl IOnGitHubRelease {
   slack: SlackClient;
   allReleasesChannel: str;
@@ -115,12 +121,9 @@ class SlackPublisher impl IOnGitHubRelease {
       type: "header", 
       text: Json { 
         type: "plain_text", 
-        text: "Wing {release.tag} has been released! :rocket:"
+        text: "{release.title} has been released! :rocket:"
       } 
     });
-
-    // currently, new minor version releases are considered breaking changes
-    let isBreakingChange = release.tag.endsWith(".0");
 
     let var description = release.body;
     // strip everything after "### SHA-1 Checksums"
@@ -138,18 +141,26 @@ class SlackPublisher impl IOnGitHubRelease {
 
     Utils.debug("posting slack message: {Json.stringify(blocks)}");
 
+    let breakingChange = isBreakingChange(release.tag);
+
     this.slack.post_message(channel: this.allReleasesChannel, blocks: blocks.copy());
-    if isBreakingChange {
+    if breakingChange {
       this.slack.post_message(channel: this.breakingChangesChannel, blocks: blocks.copy());
     }
   }
+}
+
+struct GithubScannerProps {
+  owner: str;
+  repo: str;
 }
 
 class GithubScanner {
   api: cloud.Api;
   pub url: str;
   releases: cloud.Topic;
-  new() {
+
+  new(props: GithubScannerProps) {
     this.api = new cloud.Api();
     this.releases = new cloud.Topic();
     this.url = this.api.url;
@@ -168,7 +179,7 @@ class GithubScanner {
       }
 
       let repo = str.fromJson(body.get("repository").get("full_name"));
-      if repo != GITHUB_REPO_FULL {
+      if repo != "{props.owner}/{props.repo}" {
         let message = "skipping release for repo '{repo}'";
         Utils.debug(message);
         return cloud.ApiResponse {
@@ -207,17 +218,32 @@ class GithubScanner {
 // Main
 
 let slackToken = new cloud.Secret(name: "slack-token") as "Slack Token";
-let slack = new SlackClient(token: slackToken);
+let slack = new SlackClient(token: slackToken) as "SlackClient";
 
-let scanner = new GithubScanner();
+let wingScanner = new GithubScanner(owner: "winglang", repo: "wing") as "WingScanner";
+let winglibsScanner = new GithubScanner(owner: "winglang", repo: "winglibs") as "WinglibsScanner";
+
 let slackPublisher = new SlackPublisher(
   slack: slack,
   allReleasesChannel: SLACK_CHANNEL_ALL_RELEASES,
   breakingChangesChannel: SLACK_CHANNEL_BREAKING_CHANGES
-);
-scanner.onRelease(slackPublisher);
+) as "SlackPublisher";
+wingScanner.onRelease(slackPublisher);
+winglibsScanner.onRelease(slackPublisher);
 
-new cloud.Endpoint(scanner.url);
+// --------------------------------
+// Unit tests
+
+test "isBreakingChange" {
+  assert(isBreakingChange("1.0.0"));
+  assert(isBreakingChange("11.0.0"));
+  assert(isBreakingChange("0.1.0"));
+  assert(isBreakingChange("0.11.0"));
+  assert(!isBreakingChange("0.0.1"));
+  assert(!isBreakingChange("0.1.1"));
+  assert(!isBreakingChange("1.1.0"));
+  assert(!isBreakingChange("1.1.1"));
+}
 
 // --------------------------------
 // Local testing (these functions won't work in the cloud)
