@@ -6,27 +6,12 @@
 // > export GITHUB_TOKEN=$(gh auth token)
 
 // --------------------------------
-// Config
-
-let SLACK_CHANNEL_ALL_RELEASES = "#rybickic-test";
-let SLACK_CHANNEL_BREAKING_CHANGES = "#rybickic-test2";
-let GITHUB_OWNER = "Chriscbr";
-let GITHUB_REPO = "local-sim-test";
-
-// let SLACK_CHANNEL_ALL_RELEASES = "#releases";
-// let SLACK_CHANNEL_BREAKING_CHANGES = "#breaking-changes";
-// let GITHUB_OWNER = "winglang";
-// let GITHUB_REPO = "wing";
-
-// --------------------------------
 // Utils
 
 bring cloud;
 bring http;
 bring util;
 bring regex;
-
-let GITHUB_REPO_FULL = "{GITHUB_OWNER}/{GITHUB_REPO}";
 
 class Utils {
   pub extern "./utils.js" inflight static startGithubWebhook(repo: str, endpoint: str);
@@ -225,8 +210,8 @@ let winglibsScanner = new GithubScanner(owner: "winglang", repo: "winglibs") as 
 
 let slackPublisher = new SlackPublisher(
   slack: slack,
-  allReleasesChannel: SLACK_CHANNEL_ALL_RELEASES,
-  breakingChangesChannel: SLACK_CHANNEL_BREAKING_CHANGES
+  allReleasesChannel: "#releases",
+  breakingChangesChannel: "#breaking-changes",
 ) as "SlackPublisher";
 wingScanner.onRelease(slackPublisher);
 winglibsScanner.onRelease(slackPublisher);
