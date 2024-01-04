@@ -153,6 +153,8 @@ class GithubScanner {
     this.api.post("/payload", inflight (req: cloud.ApiRequest): cloud.ApiResponse => {
       let body = Json.parse(req.body ?? "\{\}");
 
+      log("received event: {Json.stringify(body)}");
+
       let eventAction = str.fromJson(body.get("action"));
       if eventAction != "released" {
         let message = "skipping event type with type '{eventAction}'";
