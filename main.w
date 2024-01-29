@@ -14,11 +14,11 @@ bring util;
 bring regex;
 
 class Utils {
-  pub extern "./utils.js" inflight static startGithubWebhook(repo: str, endpoint: str);
+  pub extern "./utils.js" inflight static startGithubWebhook(repo: str, endpoint: str): void;
   pub extern "./utils.js" inflight static slackifyMarkdown(text: str): str;
 
   // unlike "log", this prints immediately to CLI during `wing test`
-  pub extern "./utils.js" inflight static debug(msg: str);
+  pub extern "./utils.js" inflight static debug(msg: str): void;
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -75,7 +75,7 @@ struct GithubRelease {
 }
 
 interface IOnGitHubRelease {
-  inflight handle(release: GithubRelease);
+  inflight handle(release: GithubRelease): void;
 }
 
 struct SlackPublisherProps {
@@ -85,8 +85,8 @@ struct SlackPublisherProps {
 }
 
 let isBreakingChange = inflight (tag: str): bool => {
-  // version should match x.0.0 or 0.x.0
-  return regex.match("^[0-9]+\\.0\\.0$", tag) || regex.match("^0\\.[0-9]+\\.0$", tag);
+  // version should match vx.0.0 or v0.x.0
+  return regex.match("^v[0-9]+\\.0\\.0$", tag) || regex.match("^v0\\.[0-9]+\\.0$", tag);
 };
 
 class SlackPublisher impl IOnGitHubRelease {
@@ -101,6 +101,8 @@ class SlackPublisher impl IOnGitHubRelease {
   }
 
   pub inflight handle(release: GithubRelease) {
+    Utils.debug("handling release: {Json.stringify(release)}");
+
     let blocks = MutArray<Json>[];
     blocks.push(Json { 
       type: "header", 
@@ -127,6 +129,8 @@ class SlackPublisher impl IOnGitHubRelease {
     Utils.debug("posting slack message: {Json.stringify(blocks)}");
 
     let breakingChange = isBreakingChange(release.tag);
+
+    Utils.debug("is {release.tag} a breaking change?: {breakingChange}");
 
     this.slack.post_message(channel: this.allReleasesChannel, blocks: blocks.copy());
     if breakingChange {
@@ -222,14 +226,14 @@ winglibsScanner.onRelease(slackPublisher);
 // Unit tests
 
 test "isBreakingChange" {
-  assert(isBreakingChange("1.0.0"));
-  assert(isBreakingChange("11.0.0"));
-  assert(isBreakingChange("0.1.0"));
-  assert(isBreakingChange("0.11.0"));
-  assert(!isBreakingChange("0.0.1"));
-  assert(!isBreakingChange("0.1.1"));
-  assert(!isBreakingChange("1.1.0"));
-  assert(!isBreakingChange("1.1.1"));
+  assert(isBreakingChange("v1.0.0"));
+  assert(isBreakingChange("v11.0.0"));
+  assert(isBreakingChange("v0.1.0"));
+  assert(isBreakingChange("v0.11.0"));
+  assert(!isBreakingChange("v0.0.1"));
+  assert(!isBreakingChange("v0.1.1"));
+  assert(!isBreakingChange("v1.1.0"));
+  assert(!isBreakingChange("v1.1.1"));
 }
 
 // --------------------------------
