@@ -155,7 +155,7 @@ class GithubScanner {
     this.url = this.api.url;
 
     this.api.post("/payload", inflight (req: cloud.ApiRequest): cloud.ApiResponse => {
-      if req.headers?.tryGet("X-GitHub-Event") == "ping" {
+      if req.headers?.tryGet("x-github-event") == "ping" {
         return cloud.ApiResponse {
           status: 200,
           body: "Received ping event from GitHub."
