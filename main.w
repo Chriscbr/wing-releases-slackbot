@@ -56,6 +56,7 @@ class SlackClient {
         channel: args.channel,
         text: args.text ?? "",
         blocks: blocks,
+        unfurl_media: false,
       })
     );
 
