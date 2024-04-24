@@ -11,7 +11,6 @@
 bring cloud;
 bring http;
 bring util;
-bring regex;
 
 class Utils {
   pub extern "./utils.js" inflight static startGithubWebhook(repo: str, endpoint: str): void;
@@ -85,9 +84,11 @@ struct SlackPublisherProps {
   breakingChangesChannel: str;
 }
 
+let breakingChangeRegex = regex.compile("^v[0-9]+\\.0\\.0$|^v0\\.[0-9]+\\.0$");
+
 let isBreakingChange = inflight (tag: str): bool => {
   // version should match vx.0.0 or v0.x.0
-  return regex.match("^v[0-9]+\\.0\\.0$", tag) || regex.match("^v0\\.[0-9]+\\.0$", tag);
+  return breakingChangeRegex.test(tag);
 };
 
 class SlackPublisher impl IOnGitHubRelease {
